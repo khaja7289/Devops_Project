@@ -1,0 +1,16 @@
+node_modules/
+.env
+*.log
+Dockerfile
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker volumes (optional)
+pgdata/
