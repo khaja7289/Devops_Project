@@ -11,7 +11,10 @@ RUN curl -SL https://github.com/docker/compose/releases/latest/download/docker-c
     -o /usr/local/bin/docker-compose && \
     chmod +x /usr/local/bin/docker-compose
 
-# Give docker permissions
-RUN usermod -aG docker jenkins
+# Install Docker Buildx (🔥 IMPORTANT)
+RUN mkdir -p /usr/libexec/docker/cli-plugins && \
+    curl -SL https://github.com/docker/buildx/releases/latest/download/buildx-linux-amd64 \
+    -o /usr/libexec/docker/cli-plugins/docker-buildx && \
+    chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
 
 USER jenkins
