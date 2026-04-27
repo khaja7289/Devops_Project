@@ -37,7 +37,11 @@ EOF
         stage('Build & Deploy') {
             steps {
                 sh 'docker-compose down || true'
-                sh 'docker-compose up -d --build'
+
+                sh '''
+                docker build -t auth-service ./services/auth-service
+                docker-compose up -d
+                '''
             }
         }
     }
