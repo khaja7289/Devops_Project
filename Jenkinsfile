@@ -1,18 +1,14 @@
 pipeline {
     agent any
 
-    options {
-        skipDefaultCheckout(true)
-    }
-
     stages {
-        stage('Clean Workspace') {
+        stage('Clean') {
             steps {
                 deleteDir()
             }
         }
 
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
                 checkout scm
             }
@@ -37,11 +33,8 @@ EOF
         stage('Build & Deploy') {
             steps {
                 sh 'docker-compose down || true'
-
-                sh '''
-                docker build -t auth-service ./services/auth-service
-                docker-compose up -d
-                '''
+                sh 'docker build -t auth-service ./services/auth-service'
+                sh 'docker-compose up -d'
             }
         }
     }
