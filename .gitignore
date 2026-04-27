@@ -1,8 +1,7 @@
 node_modules/
 .env
 *.log
-Dockerfile
-docker-compose.override.yml
+
 
 # OS
 .DS_Store
