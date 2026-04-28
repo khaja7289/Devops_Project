@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:15
-    container_name: postgres-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -13,7 +12,6 @@ services:
 
   auth-service:
     build: ./services/auth-service
-    container_name: auth-service
     ports:
       - "3000:3000"
     depends_on:
@@ -23,7 +21,6 @@ services:
 
   api-gateway:
     image: nginx
-    container_name: api-gateway
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf
     ports:
@@ -33,7 +30,6 @@ services:
 
   prometheus:
     image: prom/prometheus
-    container_name: prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -43,7 +39,6 @@ services:
 
   grafana:
     image: grafana/grafana
-    container_name: grafana
     ports:
       - "3001:3000"
     depends_on:
@@ -51,15 +46,13 @@ services:
 
   node-exporter:
     image: prom/node-exporter
-    container_name: node-exporter
     ports:
       - "9100:9100"
 
-  jenkins:   # ✅ MOVED INSIDE services
+  jenkins:
     build:
       context: .
       dockerfile: Jenkins.Dockerfile
-    container_name: jenkins
     user: root
     ports:
       - "8081:8080"
@@ -69,4 +62,4 @@ services:
 
 volumes:
   pgdata:
-  jenkins_home:   # ✅ you were missing this too
+  jenkins_home:
