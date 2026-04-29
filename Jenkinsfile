@@ -14,6 +14,16 @@ pipeline {
             }
         }
 
+        stage('Debug Files') {
+            steps {
+                sh 'pwd'
+                sh 'ls -la'
+                sh 'ls -la gateway || true'
+                sh 'ls -la prometheus || true'
+                sh 'ls -la services || true'
+            }
+        }
+
         stage('Create .env') {
             steps {
                 sh '''
@@ -38,11 +48,5 @@ EOF
                 '''
             }
         }
-        stage('Debug Files') {
-    steps {
-        sh 'ls -la'
-        sh 'ls -la gateway'
-    }
-}
     }
 }
