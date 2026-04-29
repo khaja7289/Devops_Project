@@ -55,7 +55,7 @@ services:
       dockerfile: Jenkins.Dockerfile
     user: root
     ports:
-      - "8081:8080"
+      - "8082:8080"
     volumes:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
