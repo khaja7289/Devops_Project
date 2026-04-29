@@ -27,13 +27,9 @@ services:
       - auth-service
 
   prometheus:
-    image: prom/prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    build: ./prometheus
     ports:
       - "9090:9090"
-    depends_on:
-      - auth-service
 
   grafana:
     image: grafana/grafana
