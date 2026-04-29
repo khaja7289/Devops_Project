@@ -38,5 +38,11 @@ EOF
                 '''
             }
         }
+        stage('Debug Files') {
+    steps {
+        sh 'ls -la'
+        sh 'ls -la gateway'
+    }
+}
     }
 }
