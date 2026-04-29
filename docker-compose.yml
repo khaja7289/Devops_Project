@@ -6,14 +6,14 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: udemy_devops
     ports:
-      - "5433:5432"
+      - "55432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
   auth-service:
     build: ./services/auth-service
     ports:
-      - "3000:3000"
+      - "33000:3000"
     depends_on:
       - postgres
     env_file:
@@ -24,7 +24,7 @@ services:
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf
     ports:
-      - "8080:80"
+      - "38080:80"
     depends_on:
       - auth-service
 
@@ -33,33 +33,21 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
-      - "9090:9090"
+      - "39090:9090"
     depends_on:
       - auth-service
 
   grafana:
     image: grafana/grafana
     ports:
-      - "3001:3000"
+      - "33001:3000"
     depends_on:
       - prometheus
 
   node-exporter:
     image: prom/node-exporter
     ports:
-      - "9100:9100"
-
-  jenkins:
-    build:
-      context: .
-      dockerfile: Jenkins.Dockerfile
-    user: root
-    ports:
-      - "8082:8080"
-    volumes:
-      - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
+      - "39100:9100"
 
 volumes:
   pgdata:
-  jenkins_home:
