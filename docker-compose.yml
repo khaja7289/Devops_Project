@@ -27,6 +27,8 @@ services:
     container_name: api-gateway
     ports:
       - "8080:80"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf
     depends_on:
       - auth-service
 
