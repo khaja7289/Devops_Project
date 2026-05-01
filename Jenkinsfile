@@ -48,5 +48,13 @@ EOF
                 '''
             }
         }
+        stage('Verify DB') {
+    steps {
+        sh '''
+        sleep 10
+        docker exec postgres psql -U postgres -d udemy_devops -c "SELECT * FROM users;"
+        '''
+    }
+}
     }
 }
