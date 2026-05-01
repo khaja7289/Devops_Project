@@ -72,6 +72,27 @@ app.get('/metrics', async (req, res) => {
   res.end(await register.metrics());
 });
 
+// Register API
+app.post('/register', async (req, res) => {
+  const { email, password, role } = req.body;
+
+  try {
+    // 🔐 hash password automatically
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await pool.query(
+      'INSERT INTO users (email, password, role) VALUES ($1, $2, $3)',
+      [email, hashedPassword, role]
+    );
+
+    res.json({ message: 'User registered successfully' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error registering user' });
+  }
+});
+
 // Login
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
