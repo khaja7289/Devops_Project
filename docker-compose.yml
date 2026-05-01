@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   postgres:
     image: postgres:15
@@ -15,7 +13,7 @@ services:
       - ./services/auth-service/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   auth-service:
-    build: ./services/auth-service
+    image: khaja7289/devops-project-pipeline:auth-service
     container_name: auth-service
     ports:
       - "3000:3000"
@@ -25,7 +23,7 @@ services:
       - ./services/auth-service/.env
 
   api-gateway:
-    build: ./gateway
+    image: khaja7289/devops-project-pipeline:api-gateway
     container_name: api-gateway
     ports:
       - "8080:80"
@@ -33,7 +31,7 @@ services:
       - auth-service
 
   prometheus:
-    build: ./prometheus
+    image: khaja7289/devops-project-pipeline:prometheus
     container_name: prometheus
     ports:
       - "9090:9090"
