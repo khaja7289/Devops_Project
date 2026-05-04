@@ -127,6 +127,22 @@ app.post('/login', async (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
+  const accessToken = jwt.sign(
+  { userId: user.id, role: user.role },
+  process.env.JWT_SECRET,
+  { expiresIn: '15m' }
+);
+
+const refreshToken = jwt.sign(
+  { userId: user.id },
+  process.env.JWT_REFRESH_SECRET,
+  { expiresIn: '7d' }
+);
+
+res.json({
+  accessToken,
+  refreshToken
+});
 });
 
 // Protected
