@@ -12,6 +12,7 @@ const authMiddleware = require('./middleware/authMiddleware');
 // ================= APP INIT =================
 const app = express();
 
+
 // ================= MIDDLEWARE =================
 app.use(morgan((tokens, req, res) => {
   return JSON.stringify({
@@ -144,6 +145,31 @@ res.json({
   refreshToken
 });
 });
+// ================= refresh =================
+app.post('/refresh', (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+
+    const newAccessToken = jwt.sign(
+      { userId: decoded.userId },
+      process.env.JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    res.json({ accessToken: newAccessToken });
+
+  } catch (err) {
+    return res.status(403).json({ message: 'Invalid refresh token' });
+  }
+});
+
+// ================= APP INIT =================
 
 // Protected
 app.get('/profile', authMiddleware, (req, res) => {
