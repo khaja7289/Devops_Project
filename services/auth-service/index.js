@@ -94,7 +94,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Login API
+// =========== Login API =========
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -116,18 +116,28 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // ✅ Access token
+    // ✅ tokens inside async
     const accessToken = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '15m' }
     );
 
-    // ✅ Refresh token
     const refreshToken = jwt.sign(
       { userId: user.id },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: '7d' }
+    );
+
+    // ✅ DB queries inside async
+    await pool.query(
+      'DELETE FROM refresh_tokens WHERE user_id = $1',
+      [user.id]
+    );
+
+    await pool.query(
+      'INSERT INTO refresh_tokens (user_id, token) VALUES ($1, $2)',
+      [user.id, refreshToken]
     );
 
     res.json({
@@ -135,10 +145,7 @@ app.post('/login', async (req, res) => {
       accessToken,
       refreshToken
     });
-  await pool.query(
-  	'INSERT INTO refresh_tokens (user_id, token) VALUES ($1, $2)',
-  	[user.id, refreshToken]
- 	);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
