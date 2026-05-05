@@ -58,5 +58,13 @@ EOF
         '''
     }
 }
+tage('Verify Refresh DB') {
+    steps {
+        sh '''
+        sleep 10
+        docker exec postgres psql -U postgres -d udemy_devops -c "select * from refresh-tokens;"
+        '''
+    }
+
     }
 }
