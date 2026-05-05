@@ -173,7 +173,7 @@ app.post('/logout', async (req, res) => {
   }
 });
 // ================= refresh =================
-app.post('/refresh', (req, res) => {
+app.post('/refresh', async (req, res) => {
   const { refreshToken } = req.body;
 
   if (!refreshToken) {
@@ -181,8 +181,20 @@ app.post('/refresh', (req, res) => {
   }
 
   try {
+    // ✅ check DB first
+    const result = await pool.query(
+      'SELECT * FROM refresh_tokens WHERE token = $1',
+      [refreshToken]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ message: 'Invalid refresh token' });
+    }
+
+    // ✅ verify JWT
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
+    // ✅ create new access token
     const newAccessToken = jwt.sign(
       { userId: decoded.userId },
       process.env.JWT_SECRET,
@@ -190,14 +202,7 @@ app.post('/refresh', (req, res) => {
     );
 
     res.json({ accessToken: newAccessToken });
- const result = await pool.query(
-  'SELECT * FROM refresh_tokens WHERE token = $1',
-  [refreshToken]
-);
 
-if (result.rows.length === 0) {
-  return res.status(403).json({ message: 'Invalid refresh token' });
-}
   } catch (err) {
     return res.status(403).json({ message: 'Invalid refresh token' });
   }
