@@ -94,7 +94,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Login
+// Login API
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -116,34 +116,30 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
+    // ✅ Access token
+    const accessToken = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '15m' }
     );
 
-    res.json({ message: 'Login successful', token });
+    // ✅ Refresh token
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: 'Login successful',
+      accessToken,
+      refreshToken
+    });
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
-  const accessToken = jwt.sign(
-  { userId: user.id, role: user.role },
-  process.env.JWT_SECRET,
-  { expiresIn: '15m' }
-);
-
-const refreshToken = jwt.sign(
-  { userId: user.id },
-  process.env.JWT_REFRESH_SECRET,
-  { expiresIn: '7d' }
-);
-
-res.json({
-  accessToken,
-  refreshToken
-});
 });
 // ================= refresh =================
 app.post('/refresh', (req, res) => {
