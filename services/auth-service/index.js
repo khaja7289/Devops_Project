@@ -135,7 +135,10 @@ app.post('/login', async (req, res) => {
       accessToken,
       refreshToken
     });
-
+  await pool.query(
+  	'INSERT INTO refresh_tokens (user_id, token) VALUES ($1, $2)',
+  	[user.id, refreshToken]
+ 	);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -159,7 +162,14 @@ app.post('/refresh', (req, res) => {
     );
 
     res.json({ accessToken: newAccessToken });
+ const result = await pool.query(
+  'SELECT * FROM refresh_tokens WHERE token = $1',
+  [refreshToken]
+);
 
+if (result.rows.length === 0) {
+  return res.status(403).json({ message: 'Invalid refresh token' });
+}
   } catch (err) {
     return res.status(403).json({ message: 'Invalid refresh token' });
   }
