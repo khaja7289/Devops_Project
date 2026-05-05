@@ -164,7 +164,22 @@ app.post('/refresh', (req, res) => {
     return res.status(403).json({ message: 'Invalid refresh token' });
   }
 });
+// ================= Role Based ============
+const roleMiddleware = require('./middleware/roleMiddleware');
+// Admin only
+app.get('/admin', authMiddleware, roleMiddleware(['admin']), (req, res) => {
+  res.json({ message: 'Welcome Admin' });
+});
 
+// Instructor only
+app.get('/instructor', authMiddleware, roleMiddleware(['instructor']), (req, res) => {
+  res.json({ message: 'Welcome Instructor' });
+});
+
+// Student only
+app.get('/student', authMiddleware, roleMiddleware(['student']), (req, res) => {
+  res.json({ message: 'Welcome Student' });
+});
 // ================= APP INIT =================
 
 // Protected
