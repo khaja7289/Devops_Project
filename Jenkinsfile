@@ -50,21 +50,23 @@ EOF
                 '''
             }
         }
-        stage('Verify DB') {
-    steps {
-        sh '''
-        sleep 10
-        docker exec postgres psql -U postgres -d udemy_devops -c "SELECT * FROM users;"
-        '''
-    }
-}
-tage('Verify Refresh DB') {
-    steps {
-        sh '''
-        sleep 10
-        docker exec postgres psql -U postgres -d udemy_devops -c "select * from refresh-tokens;"
-        '''
-    }
 
+        stage('Verify Users DB') {
+            steps {
+                sh '''
+                sleep 10
+                docker exec postgres psql -U postgres -d udemy_devops -c "SELECT * FROM users;"
+                '''
+            }
+        }
+
+        stage('Verify Refresh DB') {
+            steps {
+                sh '''
+                sleep 10
+                docker exec postgres psql -U postgres -d udemy_devops -c "SELECT * FROM refresh_tokens;"
+                '''
+            }
+        }
     }
 }
