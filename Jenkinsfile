@@ -34,7 +34,7 @@ DB_PASSWORD=postgres
 DB_NAME=udemy_devops
 DB_PORT=5432
 PORT=3000
-// JWT_SECRET=my_super_secret_key
+#JWT_SECRET=my_super_secret_key
 JWT_SECRET=access_secret
 JWT_REFRESH_SECRET=refresh_secret
 EOF
