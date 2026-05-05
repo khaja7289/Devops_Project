@@ -144,6 +144,27 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+// ================= Logout =================
+app.post('/logout', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(400).json({ message: 'Refresh token required' });
+  }
+
+  try {
+    await pool.query(
+      'DELETE FROM refresh_tokens WHERE token = $1',
+      [refreshToken]
+    );
+
+    res.json({ message: 'Logged out successfully' });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Logout failed' });
+  }
+});
 // ================= refresh =================
 app.post('/refresh', (req, res) => {
   const { refreshToken } = req.body;
