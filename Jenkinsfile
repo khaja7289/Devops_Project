@@ -165,6 +165,26 @@ pipeline {
             }
         }
 
+        stage('Performance Tests') {
+            steps {
+                echo '⚡ Running K6 performance tests...'
+                sh '''
+                docker run --rm --network host -v "$PWD":/src -w /src \
+                  -e BASE_URL=http://localhost:8080 \
+                  -e USER_EMAIL=admin@gmail.com \
+                  -e USER_PASSWORD=admin123 \
+                  -e USER_ROLE=admin \
+                  -e VUS=1 \
+                  -e DURATION=10m \
+                  -e TPH=10 \
+                  grafana/k6 run PerformanceTesting/auth_refresh_test.js --summary-export=PerformanceTesting/perf-summary.json
+
+                echo "K6 summary exported to PerformanceTesting/perf-summary.json"
+                cat PerformanceTesting/perf-summary.txt || true
+                '''
+            }
+        }
+
         stage('Database Backup') {
             steps {
                 echo '💾 Creating database backup...'
