@@ -1,0 +1,167 @@
+version: '3.8'
+
+# Staging Environment - Pre-production testing
+# Use: docker-compose -f docker-compose.staging.yml up -d
+# Differences from dev: reduced logging, external networks, stricter health checks
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-staging
+    environment:
+      POSTGRES_USER: staging_user
+      POSTGRES_PASSWORD: staging_password
+      POSTGRES_DB: udemy_devops_staging
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staging_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  flyway:
+    image: flyway/flyway:latest
+    container_name: flyway-staging
+    command: -url=jdbc:postgresql://postgres:5432/udemy_devops_staging -user=staging_user -password=staging_password -locations=filesystem:/flyway/sql migrate
+    volumes:
+      - ./services/auth-service/migrations:/flyway/sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/udemy_devops_staging
+      FLYWAY_USER: staging_user
+      FLYWAY_PASSWORD: staging_password
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+
+  auth-service:
+    image: khaja7289/devops-project-pipeline:auth-service
+    container_name: auth-service-staging
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_USER: staging_user
+      DB_PASSWORD: staging_password
+      DB_NAME: udemy_devops_staging
+      DB_PORT: 5432
+      PORT: 3000
+      NODE_ENV: staging
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+    secrets:
+      - jwt_secret_staging
+      - jwt_refresh_secret_staging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  api-gateway:
+    image: khaja7289/devops-project-pipeline:api-gateway
+    container_name: api-gateway-staging
+    ports:
+      - "8080:80"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/auth/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-staging
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data-staging:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager-staging
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data-staging:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9093/-/healthy"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-staging
+    ports:
+      - "3001:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: admin
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana_data-staging:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter-staging
+    ports:
+      - "9101:9100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9100/metrics"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-staging:
+  prometheus_data-staging:
+  alertmanager_data-staging:
+  grafana_data-staging:
+
+secrets:
+  jwt_secret_staging:
+    file: ./services/auth-service/secrets/jwt_secret_staging.txt
+  jwt_refresh_secret_staging:
+    file: ./services/auth-service/secrets/jwt_refresh_secret_staging.txt

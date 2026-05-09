@@ -2,6 +2,9 @@
 # .env
 # *.log
 
+# Secrets (never commit real secrets!)
+services/auth-service/secrets/*.txt
+!services/auth-service/secrets/.gitkeep
 
 # OS
 .DS_Store

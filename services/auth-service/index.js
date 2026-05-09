@@ -2,7 +2,6 @@ require('dotenv').config();
 
 // ================= IMPORTS =================
 const express = require('express');
-const morgan = require('morgan');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -10,22 +9,14 @@ const client = require('prom-client');
 const authMiddleware = require('./middleware/authMiddleware');
 const { validateRegister, validateLogin, validateRefresh, validateLogout } = require('./middleware/validationMiddleware');
 const { handleError } = require('./utils/errorHandler');
+const { httpLogger, logger, logEvent } = require('./utils/logger');
 
 // ================= APP INIT =================
 const app = express();
 
 
 // ================= MIDDLEWARE =================
-app.use(morgan((tokens, req, res) => {
-  return JSON.stringify({
-    method: tokens.method(req, res),
-    url: tokens.url(req, res),
-    status: Number(tokens.status(req, res)),
-    response_time: Number(tokens['response-time'](req, res)),
-    timestamp: new Date().toISOString()
-  });
-}));
-
+app.use(httpLogger);
 app.use(express.json());
 
 // ================= DATABASE =================
@@ -82,14 +73,16 @@ app.post('/register', validateRegister, async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await pool.query(
-      'INSERT INTO users (email, password, role) VALUES ($1, $2, $3)',
+    const result = await pool.query(
+      'INSERT INTO users (email, password, role) VALUES ($1, $2, $3) RETURNING id',
       [email, hashedPassword, role]
     );
 
+    logEvent.userRegistered(email, role);
     res.status(201).json({ message: 'User registered successfully' });
 
   } catch (err) {
+    logEvent.validationError('email', err.message);
     handleError(res, err, 'Error registering user');
   }
 });

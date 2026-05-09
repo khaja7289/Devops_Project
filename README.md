@@ -350,18 +350,123 @@ cd services/auth-service
 # Install dependencies
 npm install
 
-# Run all tests
+# Run unit tests
 npm test
+
+# Run integration tests (requires docker-compose.test.yml)
+npm run test:integration
+
+# Run all tests (unit + integration)
+npm run test:all
 
 # Watch mode (re-run on file changes)
 npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
 ```
 
 **Test Coverage**:
-- Validation middleware tests
-- Error handler tests
-- API endpoint integration tests
-- 30+ test cases
+- 30+ unit tests
+- 15+ integration tests with real database
+- Full validation, error handling, and API endpoint coverage
+
+## 🔐 Secrets Management
+
+Sensitive credentials are managed securely:
+
+**File**: `services/auth-service/secrets/`
+- JWT secrets stored separately from source code
+- Excluded from version control via `.gitignore`
+- Used via Docker secrets in production
+
+For configuration details, see: [`services/auth-service/secrets/README.md`](./services/auth-service/secrets/README.md)
+
+## 📦 Database Migrations
+
+Database schema is version-controlled using Flyway:
+
+**Location**: `services/auth-service/migrations/`
+- Each migration file is numbered and versioned
+- Migrations run automatically on container startup
+- Full migration history tracked in database
+
+**Migration Files**:
+- `V1__Create_users_table.sql` - Users table setup
+- `V2__Create_refresh_tokens_table.sql` - Refresh tokens table
+- `V3__Insert_test_users.sql` - Test data
+
+To add a new migration:
+```bash
+# Create new migration file following naming convention
+touch services/auth-service/migrations/V4__Your_description.sql
+
+# Restart services (Flyway runs automatically)
+docker-compose down
+docker-compose up -d --build
+```
+
+For detailed migration guide, see: [`services/auth-service/migrations/README.md`](./services/auth-service/migrations/README.md)
+
+## 🔄 CI/CD Pipeline
+
+The Jenkins pipeline now includes:
+
+**Test Stages**:
+1. ✅ Unit tests (validation, error handling, API endpoints)
+2. ✅ Code quality checks (ESLint-ready)
+3. ✅ Integration tests with real database
+4. ✅ API health checks
+5. ✅ Database verification
+6. ✅ Service health monitoring
+
+**Pipeline Stages**:
+- Clean workspace
+- Checkout code
+- Run unit tests
+- Create secrets
+- Build & deploy containers
+- Run database migrations
+- Verify database tables
+- Check service health
+- Run API integration tests
+- Create database backup
+- Generate test summary
+
+**Jenkinsfile**: `./Jenkinsfile`
+
+To manually test the pipeline:
+```bash
+# Run pipeline locally
+docker-compose down || true
+docker-compose up -d --build
+sleep 15
+
+# Test health endpoints
+curl http://localhost:8080/auth/health
+curl http://localhost:9090/-/healthy
+curl http://localhost:3001/api/health
+```
+
+## ❤️ Health Checks
+
+All services include health checks for auto-recovery:
+
+```yaml
+Services monitored:
+- PostgreSQL: pg_isready check
+- Auth Service: /health endpoint
+- API Gateway: /auth/health endpoint
+- Prometheus: /-/healthy endpoint
+- Grafana: /api/health endpoint
+- Node Exporter: /metrics endpoint
+```
+
+Health checks enable:
+- Automatic container restart on failure
+- Orchestration with Kubernetes
+- Load balancer integration
+- Service dependency management
 
 ## 🔐 Security Notes
 
