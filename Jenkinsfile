@@ -40,7 +40,7 @@ pipeline {
                 echo "Host workspace listing:"
                 ls -la services/auth-service
 
-                docker run --rm -v "$PWD":/workspace -w /workspace/services/auth-service node:18 /bin/sh -lc 'pwd && ls -la && npm install && npm test -- --ci --coverage'
+                docker run --rm -v /var/jenkins_home/workspace/devops-project-pipeline/services/auth-service:/app -w /app node:18 /bin/sh -lc 'pwd && ls -la /app && cat /app/package.json | head -20 && npm install && npm test -- --ci --coverage'
                 '''
             }
         }
@@ -49,7 +49,7 @@ pipeline {
             steps {
                 echo '✨ Checking code quality in Node container...'
                 sh '''
-                docker run --rm -v "$PWD":/workspace -w /workspace/services/auth-service node:18 /bin/sh -lc 'node --version && npm --version && (npx eslint --version || echo "ESLint not configured")'
+                docker run --rm -v /var/jenkins_home/workspace/devops-project-pipeline/services/auth-service:/app -w /app node:18 /bin/sh -lc 'node --version && npm --version && (npx eslint --version || echo "ESLint not configured")'
                 '''
             }
         }
