@@ -37,8 +37,8 @@ pipeline {
             steps {
                 echo '🧪 Running unit tests in Node container...'
                 sh '''
-                docker run --rm -v "$PWD/services/auth-service":/app -w /app node:18 \
-                  sh -c "npm install && npm test -- --ci --coverage"
+                docker run --rm -v "$PWD/services/auth-service":/app -w /app node:18 /bin/sh -lc '
+                  pwd && ls -la && npm install && npm test -- --ci --coverage'
                 '''
             }
         }
@@ -47,8 +47,8 @@ pipeline {
             steps {
                 echo '✨ Checking code quality in Node container...'
                 sh '''
-                docker run --rm -v "$PWD/services/auth-service":/app -w /app node:18 \
-                  sh -c "node --version && npm --version && (npx eslint --version || echo 'ESLint not configured')"
+                docker run --rm -v "$PWD/services/auth-service":/app -w /app node:18 /bin/sh -lc '
+                  node --version && npm --version && (npx eslint --version || echo "ESLint not configured")'
                 '''
             }
         }
