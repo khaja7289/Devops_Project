@@ -35,21 +35,20 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                echo '🧪 Running unit tests...'
+                echo '🧪 Running unit tests in Node container...'
                 sh '''
-                cd services/auth-service
-                npm install
-                npm test -- --ci --coverage
+                docker run --rm -v "$PWD/services/auth-service":/app -w /app node:18 \
+                  sh -c "npm install && npm test -- --ci --coverage"
                 '''
             }
         }
 
         stage('Lint & Code Quality') {
             steps {
-                echo '✨ Checking code quality...'
+                echo '✨ Checking code quality in Node container...'
                 sh '''
-                cd services/auth-service
-                npx eslint --version || echo "ESLint not configured"
+                docker run --rm -v "$PWD/services/auth-service":/app -w /app node:18 \
+                  sh -c "node --version && npm --version && (npx eslint --version || echo 'ESLint not configured')"
                 '''
             }
         }
