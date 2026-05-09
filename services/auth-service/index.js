@@ -8,6 +8,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const client = require('prom-client');
 const authMiddleware = require('./middleware/authMiddleware');
+const { validateRegister, validateLogin, validateRefresh, validateLogout } = require('./middleware/validationMiddleware');
+const { handleError } = require('./utils/errorHandler');
 
 // ================= APP INIT =================
 const app = express();
@@ -74,11 +76,10 @@ app.get('/metrics', async (req, res) => {
 });
 
 // Register API
-app.post('/register', async (req, res) => {
+app.post('/register', validateRegister, async (req, res) => {
   const { email, password, role } = req.body;
 
   try {
-    // 🔐 hash password automatically
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await pool.query(
@@ -86,16 +87,15 @@ app.post('/register', async (req, res) => {
       [email, hashedPassword, role]
     );
 
-    res.json({ message: 'User registered successfully' });
+    res.status(201).json({ message: 'User registered successfully' });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error registering user' });
+    handleError(res, err, 'Error registering user');
   }
 });
 
 // =========== Login API =========
-app.post('/login', async (req, res) => {
+app.post('/login', validateLogin, async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -105,7 +105,10 @@ app.post('/login', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        details: 'Invalid email or password'
+      });
     }
 
     const user = result.rows[0];
@@ -113,10 +116,12 @@ app.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        details: 'Invalid email or password'
+      });
     }
 
-    // ✅ tokens inside async
     const accessToken = jwt.sign(
       { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
@@ -129,7 +134,6 @@ app.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // ✅ DB queries inside async
     await pool.query(
       'DELETE FROM refresh_tokens WHERE user_id = $1',
       [user.id]
@@ -147,17 +151,12 @@ app.post('/login', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    handleError(res, err, 'Error during login');
   }
 });
 // ================= Logout =================
-app.post('/logout', async (req, res) => {
+app.post('/logout', validateLogout, async (req, res) => {
   const { refreshToken } = req.body;
-
-  if (!refreshToken) {
-    return res.status(400).json({ message: 'Refresh token required' });
-  }
 
   try {
     await pool.query(
@@ -168,33 +167,29 @@ app.post('/logout', async (req, res) => {
     res.json({ message: 'Logged out successfully' });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Logout failed' });
+    handleError(res, err, 'Logout failed');
   }
 });
+
 // ================= refresh =================
-app.post('/refresh', async (req, res) => {
+app.post('/refresh', validateRefresh, async (req, res) => {
   const { refreshToken } = req.body;
 
-  if (!refreshToken) {
-    return res.status(401).json({ message: 'No token provided' });
-  }
-
   try {
-    // ✅ check DB first
     const result = await pool.query(
       'SELECT * FROM refresh_tokens WHERE token = $1',
       [refreshToken]
     );
 
     if (result.rows.length === 0) {
-      return res.status(403).json({ message: 'Invalid refresh token' });
+      return res.status(403).json({
+        error: 'Forbidden',
+        details: 'Invalid or expired refresh token'
+      });
     }
 
-    // ✅ verify JWT
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
-    // ✅ create new access token
     const newAccessToken = jwt.sign(
       { userId: decoded.userId },
       process.env.JWT_SECRET,
@@ -204,7 +199,19 @@ app.post('/refresh', async (req, res) => {
     res.json({ accessToken: newAccessToken });
 
   } catch (err) {
-    return res.status(403).json({ message: 'Invalid refresh token' });
+    if (err.name === 'TokenExpiredError') {
+      return res.status(403).json({
+        error: 'Forbidden',
+        details: 'Refresh token has expired'
+      });
+    }
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(403).json({
+        error: 'Forbidden',
+        details: 'Invalid token format'
+      });
+    }
+    handleError(res, err, 'Token refresh failed');
   }
 });
 // ================= Role Based ============

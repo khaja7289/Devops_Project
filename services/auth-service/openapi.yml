@@ -1,0 +1,461 @@
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  description: Authentication microservice with JWT tokens and role-based access control
+  version: 1.0.0
+  contact:
+    name: DevOps Project Team
+
+servers:
+  - url: http://localhost:8080/auth
+    description: Development server (via API Gateway)
+  - url: http://localhost:3000
+    description: Direct service access
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Verify the auth service is running
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: Auth Service is running
+
+  /register:
+    post:
+      summary: Register a new user
+      description: Create a new user account with email, password, and role
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - role
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                  description: User email address (must be unique)
+                password:
+                  type: string
+                  minLength: 6
+                  example: SecurePassword123
+                  description: Password (minimum 6 characters)
+                role:
+                  type: string
+                  enum: [student, instructor, admin]
+                  example: student
+                  description: User role for access control
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User registered successfully
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingFields:
+                  value:
+                    error: Missing required fields
+                    details: email, password, and role are required
+                invalidEmail:
+                  value:
+                    error: Invalid email format
+                    details: Please provide a valid email address
+                invalidPassword:
+                  value:
+                    error: Invalid password
+                    details: Password must be at least 6 characters long
+                invalidRole:
+                  value:
+                    error: Invalid role
+                    details: Role must be one of student, instructor, admin
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Conflict
+                details: Email already registered
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /login:
+    post:
+      summary: User login
+      description: Authenticate user and receive JWT tokens
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@gmail.com
+                password:
+                  type: string
+                  example: admin123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  accessToken:
+                    type: string
+                    description: JWT access token (expires in 15 minutes)
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  refreshToken:
+                    type: string
+                    description: JWT refresh token (expires in 7 days)
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Unauthorized
+                details: Invalid email or password
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /logout:
+    post:
+      summary: User logout
+      description: Invalidate refresh token and logout user
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: JWT refresh token to invalidate
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out successfully
+        '400':
+          description: Missing refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /refresh:
+    post:
+      summary: Refresh access token
+      description: Get a new access token using a valid refresh token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: Valid JWT refresh token
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    description: New JWT access token
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidToken:
+                  value:
+                    error: Forbidden
+                    details: Invalid or expired refresh token
+                expiredToken:
+                  value:
+                    error: Forbidden
+                    details: Refresh token has expired
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /profile:
+    get:
+      summary: Get user profile
+      description: Retrieve authenticated user profile information
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Protected data
+                  user:
+                    type: object
+                    properties:
+                      userId:
+                        type: integer
+                        example: 1
+                      role:
+                        type: string
+                        example: admin
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin:
+    get:
+      summary: Admin-only resource
+      description: Access restricted to users with admin role
+      tags:
+        - Role-Based Access
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Access granted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Welcome Admin
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Forbidden
+                details: Insufficient permissions
+
+  /instructor:
+    get:
+      summary: Instructor-only resource
+      description: Access restricted to users with instructor role
+      tags:
+        - Role-Based Access
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Access granted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Welcome Instructor
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /student:
+    get:
+      summary: Student-only resource
+      description: Access restricted to users with student role
+      tags:
+        - Role-Based Access
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Access granted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Welcome Student
+        '401':
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Export Prometheus metrics for monitoring
+      tags:
+        - System
+      responses:
+        '200':
+          description: Metrics in Prometheus format
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: |
+                # HELP http_requests_total Total number of requests
+                # TYPE http_requests_total counter
+                http_requests_total{method="POST",route="/login",status="200"} 5
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - details
+      properties:
+        error:
+          type: string
+          description: Error type
+        details:
+          type: string
+          description: Detailed error message
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /login endpoint
+
+tags:
+  - name: System
+    description: System health and monitoring
+  - name: Authentication
+    description: User authentication endpoints
+  - name: User
+    description: User data endpoints
+  - name: Role-Based Access
+    description: Role-restricted resource access

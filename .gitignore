@@ -1,6 +1,6 @@
-node_modules/
-.env
-*.log
+# node_modules/
+# .env
+# *.log
 
 
 # OS
@@ -11,5 +11,5 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Docker volumes (optional)
-pgdata/
+# # Docker volumes (optional)
+# pgdata/
