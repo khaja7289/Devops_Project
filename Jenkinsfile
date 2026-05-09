@@ -65,6 +65,41 @@ pipeline {
             }
         }
 
+        stage('Docker Build & Push') {
+            steps {
+                echo '📦 Building and pushing Docker images...'
+                sh '''
+                IMAGE_TAG=$(git rev-parse --short HEAD)
+                echo "Using image tag: $IMAGE_TAG"
+
+                if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_PASSWORD" ]; then
+                  echo "Logging into Docker Hub"
+                  echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+                else
+                  echo "DOCKERHUB_USERNAME or DOCKERHUB_PASSWORD not set; skipping push"
+                fi
+
+                docker build -t khaja7289/devops-project-pipeline:auth-service-$IMAGE_TAG services/auth-service
+                docker tag khaja7289/devops-project-pipeline:auth-service-$IMAGE_TAG khaja7289/devops-project-pipeline:auth-service
+
+                docker build -t khaja7289/devops-project-pipeline:api-gateway-$IMAGE_TAG gateway
+                docker tag khaja7289/devops-project-pipeline:api-gateway-$IMAGE_TAG khaja7289/devops-project-pipeline:api-gateway
+
+                docker build -t khaja7289/devops-project-pipeline:prometheus-$IMAGE_TAG prometheus
+                docker tag khaja7289/devops-project-pipeline:prometheus-$IMAGE_TAG khaja7289/devops-project-pipeline:prometheus
+
+                if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_PASSWORD" ]; then
+                  docker push khaja7289/devops-project-pipeline:auth-service-$IMAGE_TAG
+                  docker push khaja7289/devops-project-pipeline:auth-service
+                  docker push khaja7289/devops-project-pipeline:api-gateway-$IMAGE_TAG
+                  docker push khaja7289/devops-project-pipeline:api-gateway
+                  docker push khaja7289/devops-project-pipeline:prometheus-$IMAGE_TAG
+                  docker push khaja7289/devops-project-pipeline:prometheus
+                fi
+                '''
+            }
+        }
+
         stage('Build & Deploy') {
             steps {
                 echo '🚀 Building and deploying containers...'
