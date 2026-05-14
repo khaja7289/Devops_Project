@@ -50,6 +50,14 @@ This project includes:
 - Node.js 14+ (optional, for local development)
 - Git
 
+### Available Docker Compose Files
+
+- **`docker-compose.yml`** - Default development configuration
+- **`docker-compose.prod.yml`** - Production deployment (used by Jenkins pipeline)
+- **`docker-compose.staging.yml`** - Staging environment
+- **`docker-compose.dev.yml`** - Development environment
+- **`docker-compose.test.yml`** - Testing environment
+
 ### Installation & Startup
 
 1. **Clone the repository**
@@ -58,9 +66,14 @@ git clone <repository-url>
 cd Devops_Project
 ```
 
-2. **Start all services**
+2. **Start all services (Development)**
 ```bash
 docker-compose up -d --build
+```
+
+**For Production Deployment** (via Jenkins):
+```bash
+docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
 3. **Verify all containers are running**
@@ -301,21 +314,69 @@ To add Prometheus data source:
 
 ## 🔄 CI/CD Pipeline (Jenkins)
 
-The Jenkinsfile automates the following stages:
+### Main Pipeline (Jenkinsfile - PRODUCTION DEPLOYMENT)
 
+The main Jenkinsfile automates production deployment with the following stages:
+
+**Active Stages** (Production Deployment Only):
 1. **Clean** - Cleans workspace
 2. **Checkout** - Pulls latest code
 3. **Debug Files** - Lists project structure
-4. **Create .env** - Sets environment variables
-5. **Build & Deploy** - Builds and starts Docker containers
-6. **Verify Users DB** - Checks users table
-7. **Verify Refresh DB** - Checks refresh_tokens table
+4. **Create Secrets** - Sets up JWT secrets
+5. **Docker Build & Push** - Builds and pushes Docker images to registry
+6. **Build & Deploy** - Deploys using `docker-compose.prod.yml`
+7. **Database Migrations** - Verifies Flyway migrations
+8. **Verify Users DB** - Checks users table
+9. **Verify Refresh Tokens DB** - Checks refresh_tokens table
+10. **Health Checks** - Validates all services are healthy
+11. **Test Summary** - Displays deployment summary
+
+**Commented Out** (Use separate pipelines):
+- ❌ Unit Tests → Run locally or in CI before deployment
+- ❌ Lint & Code Quality → Run locally before commits
+- ❌ API Integration Tests → Can be enabled as optional stage
+- ❌ Performance Tests → Use JenkinsPT pipeline instead
+- ❌ Database Backup → Configure separately if needed
 
 ### Running Jenkins Pipeline
 ```bash
 # Trigger pipeline (requires Jenkins setup)
-# The pipeline automatically runs on git push
+# The pipeline automatically runs on git push to main branch
+# Uses docker-compose.prod.yml for production deployment
 ```
+
+---
+
+### Performance Testing Pipeline (JenkinsPT)
+
+Create a separate Jenkins pipeline job pointing to `JenkinsPT` file for performance testing.
+
+**Stages**:
+1. **Clean** - Clears workspace
+2. **Checkout** - Pulls latest code
+3. **Pre-Test Setup** - Verifies services are running
+4. **Auth Refresh Test** - Runs K6 performance tests
+5. **Performance Analysis** - Parses test results
+6. **Generate Report** - Creates HTML performance report
+7. **Archive Results** - Archives test artifacts
+
+**Configuration** (Customizable via environment variables):
+```bash
+BASE_URL=http://localhost:8080
+USER_EMAIL=admin@gmail.com
+USER_PASSWORD=admin123
+USER_ROLE=admin
+VUS=5                    # Virtual Users
+DURATION=5m              # Test Duration
+TPH=50                   # Throughput (requests/hour)
+```
+
+**Setup**:
+1. Create new Jenkins pipeline job
+2. Point to repository URL
+3. Set script path: `JenkinsPT`
+4. Configure build triggers as needed
+5. Run pipeline for performance metrics
 
 ## 🛑 Stopping Services
 
@@ -344,6 +405,9 @@ JWT_REFRESH_SECRET=refresh_secret
 
 ## 🧪 Running Tests
 
+**Note**: Unit and integration tests are run locally during development. The Jenkins pipeline (`Jenkinsfile`) focuses on production deployment only. Tests should be run before committing code.
+
+### Local Testing
 ```bash
 cd services/auth-service
 
@@ -554,4 +618,5 @@ ISC
 ---
 
 **Last Updated**: May 2026
-**Version**: 1.0.0
+**Version**: 1.1.0
+**Pipeline Update**: Production-only CI/CD pipeline with separate Performance Testing pipeline

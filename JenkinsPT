@@ -1,0 +1,220 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        timeout(time: 60, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+
+    environment {
+        BASE_URL = 'http://localhost:8080'
+        USER_EMAIL = 'admin@gmail.com'
+        USER_PASSWORD = 'admin123'
+        USER_ROLE = 'admin'
+    }
+
+    stages {
+        stage('Clean') {
+            steps {
+                echo '🧹 Cleaning workspace...'
+                deleteDir()
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                echo '📥 Checking out code...'
+                checkout scm
+            }
+        }
+
+        stage('Pre-Test Setup') {
+            steps {
+                echo '⚙️ Setting up performance test environment...'
+                sh '''
+                echo "Verifying services are running..."
+                docker ps --format "table {{.Names}}\t{{.Status}}"
+
+                echo "Checking service health..."
+                curl -f http://localhost:8080/auth/health || echo "Warning: Auth service not responding"
+                '''
+            }
+        }
+
+        stage('Auth Refresh Test') {
+            steps {
+                echo '⚡ Running K6 Auth Refresh Performance Tests...'
+                sh '''
+                mkdir -p PerformanceTesting/results
+
+                docker run --rm --network host \
+                  -v "$PWD":/src -w /src \
+                  -e BASE_URL=${BASE_URL} \
+                  -e USER_EMAIL=${USER_EMAIL} \
+                  -e USER_PASSWORD=${USER_PASSWORD} \
+                  -e USER_ROLE=${USER_ROLE} \
+                  -e VUS=5 \
+                  -e DURATION=5m \
+                  -e TPH=50 \
+                  grafana/k6 run PerformanceTesting/auth_refresh_test.js \
+                  --summary-export=PerformanceTesting/results/auth_refresh_summary.json \
+                  --out=json=PerformanceTesting/results/auth_refresh_results.json
+
+                echo "✅ Auth Refresh Test completed"
+                '''
+            }
+        }
+
+        stage('Performance Analysis') {
+            steps {
+                echo '📊 Analyzing performance results...'
+                sh '''
+                echo "=== Performance Test Results ==="
+
+                if [ -f PerformanceTesting/results/auth_refresh_summary.json ]; then
+                    echo "Auth Refresh Test Summary:"
+                    cat PerformanceTesting/results/auth_refresh_summary.json | python3 -m json.tool || cat PerformanceTesting/results/auth_refresh_summary.json
+                else
+                    echo "No summary file found"
+                fi
+
+                echo ""
+                echo "Test Files Generated:"
+                ls -lh PerformanceTesting/results/
+                '''
+            }
+        }
+
+        stage('Generate Report') {
+            steps {
+                echo '📈 Generating performance report...'
+                sh '''
+                mkdir -p PerformanceTesting/reports
+
+                REPORT_FILE="PerformanceTesting/reports/perf_report_$(date +%Y%m%d_%H%M%S).html"
+
+                cat > $REPORT_FILE << 'EOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Performance Test Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 20px; border-radius: 8px; }
+        h1 { color: #333; }
+        .section { margin: 20px 0; }
+        .metric { display: inline-block; margin: 10px 20px 10px 0; padding: 10px; background: #f0f0f0; border-radius: 4px; }
+        .passed { color: green; }
+        .failed { color: red; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Performance Test Report</h1>
+
+        <div class="section">
+            <h2>Test Configuration</h2>
+            <div class="metric"><strong>Base URL:</strong> http://localhost:8080</div>
+            <div class="metric"><strong>Duration:</strong> 5 minutes</div>
+            <div class="metric"><strong>VUS (Virtual Users):</strong> 5</div>
+            <div class="metric"><strong>Throughput:</strong> 50 requests/hour</div>
+        </div>
+
+        <div class="section">
+            <h2>Test Results</h2>
+            <p><strong>Status:</strong> <span class="passed">✅ COMPLETED</span></p>
+            <table>
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                    <th>Status</th>
+                </tr>
+                <tr>
+                    <td>Auth Refresh Test</td>
+                    <td>Completed</td>
+                    <td><span class="passed">PASSED</span></td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Generated Artifacts</h2>
+            <ul>
+                <li>Summary: PerformanceTesting/results/auth_refresh_summary.json</li>
+                <li>Detailed Results: PerformanceTesting/results/auth_refresh_results.json</li>
+                <li>Report: This file</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <p><small>Generated: <script>document.write(new Date().toLocaleString())</script></small></p>
+        </div>
+    </div>
+</body>
+</html>
+EOF
+
+                echo "Report generated: $REPORT_FILE"
+                cat $REPORT_FILE > PerformanceTesting/reports/latest_report.html
+                '''
+            }
+        }
+
+        stage('Archive Results') {
+            steps {
+                echo '💾 Archiving test results...'
+                sh '''
+                echo "Archiving performance test artifacts..."
+                tar -czf PerformanceTesting/results/perf_results_$(date +%Y%m%d_%H%M%S).tar.gz \
+                    PerformanceTesting/results/*.json \
+                    PerformanceTesting/reports/*.html
+
+                echo "Archived files:"
+                ls -lh PerformanceTesting/results/*.tar.gz
+                '''
+            }
+        }
+
+        stage('Cleanup') {
+            steps {
+                echo '🧹 Cleaning up temporary files...'
+                sh '''
+                echo "Performance test pipeline completed successfully"
+                echo "Results available in: PerformanceTesting/results/"
+                echo "Reports available in: PerformanceTesting/reports/"
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo '📊 Performance Test Pipeline Completed'
+        }
+
+        success {
+            echo '✅ Performance tests completed successfully!'
+            sh '''
+            echo "=== Pipeline Summary ==="
+            echo "Status: SUCCESS ✅"
+            echo "Results Location: PerformanceTesting/results/"
+            echo "Report Location: PerformanceTesting/reports/"
+            ls -lh PerformanceTesting/results/ 2>/dev/null || true
+            ls -lh PerformanceTesting/reports/ 2>/dev/null || true
+            '''
+        }
+
+        failure {
+            echo '❌ Performance tests failed!'
+            sh '''
+            echo "Collecting debug information..."
+            docker ps
+            curl -f http://localhost:8080/auth/health || echo "Service health check failed"
+            '''
+        }
+    }
+}

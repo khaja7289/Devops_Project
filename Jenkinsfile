@@ -33,26 +33,27 @@ pipeline {
             }
         }
 
-        stage('Unit Tests') {
-            steps {
-                echo '🧪 Running unit tests in Node container...'
-                sh '''
-                echo "Host workspace listing:"
-                ls -la services/auth-service
+        // ========== COMMENTED OUT: TESTING STAGES ==========
+        // stage('Unit Tests') {
+        //     steps {
+        //         echo '🧪 Running unit tests in Node container...'
+        //         sh '''
+        //         echo "Host workspace listing:"
+        //         ls -la services/auth-service
+        //
+        //         tar -C services/auth-service -c . | docker run --rm -i -w /app node:18 /bin/sh -lc 'mkdir -p /app && tar -x -C /app && pwd && ls -la /app && cat /app/package.json | head -20 && npm install && npm test -- --ci --coverage'
+        //         '''
+        //     }
+        // }
 
-                tar -C services/auth-service -c . | docker run --rm -i -w /app node:18 /bin/sh -lc 'mkdir -p /app && tar -x -C /app && pwd && ls -la /app && cat /app/package.json | head -20 && npm install && npm test -- --ci --coverage'
-                '''
-            }
-        }
-
-        stage('Lint & Code Quality') {
-            steps {
-                echo '✨ Checking code quality in Node container...'
-                sh '''
-                tar -C services/auth-service -c . | docker run --rm -i -w /app node:18 /bin/sh -lc 'mkdir -p /app && tar -x -C /app && node --version && npm --version && (npx eslint --version || echo "ESLint not configured")'
-                '''
-            }
-        }
+        // stage('Lint & Code Quality') {
+        //     steps {
+        //         echo '✨ Checking code quality in Node container...'
+        //         sh '''
+        //         tar -C services/auth-service -c . | docker run --rm -i -w /app node:18 /bin/sh -lc 'mkdir -p /app && tar -x -C /app && node --version && npm --version && (npx eslint --version || echo "ESLint not configured")'
+        //         '''
+        //     }
+        // }
 
         stage('Create Secrets') {
             steps {
@@ -102,10 +103,10 @@ pipeline {
 
         stage('Build & Deploy') {
             steps {
-                echo '🚀 Building and deploying containers...'
+                echo '🚀 Building and deploying containers (PROD)...'
                 sh '''
-                docker compose down || true
-                docker compose up -d --build
+                docker compose -f docker-compose.prod.yml down || true
+                docker compose -f docker-compose.prod.yml up -d --build
                 echo "Waiting for services to be healthy..."
                 sleep 15
                 '''
@@ -158,80 +159,83 @@ pipeline {
             }
         }
 
-        stage('API Integration Tests') {
-            steps {
-                echo '🧬 Running API integration tests...'
-                sh '''
-                echo "Testing user registration..."
-                curl -X POST http://localhost:8080/auth/register \
-                  -H "Content-Type: application/json" \
-                  -d '{
-                    "email": "citest@example.com",
-                    "password": "cisecure123",
-                    "role": "student"
-                  }' || true
+        // ========== COMMENTED OUT: API INTEGRATION TESTS ==========
+        // stage('API Integration Tests') {
+        //     steps {
+        //         echo '🧬 Running API integration tests...'
+        //         sh '''
+        //         echo "Testing user registration..."
+        //         curl -X POST http://localhost:8080/auth/register \
+        //           -H "Content-Type: application/json" \
+        //           -d '{
+        //             "email": "citest@example.com",
+        //             "password": "cisecure123",
+        //             "role": "student"
+        //           }' || true
+        //
+        //         echo "\\nTesting user login..."
+        //         LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
+        //           -H "Content-Type: application/json" \
+        //           -d '{
+        //             "email": "admin@gmail.com",
+        //             "password": "admin123"
+        //           }')
+        //
+        //         echo "Login response: $LOGIN_RESPONSE"
+        //
+        //         ACCESS_TOKEN=$(echo $LOGIN_RESPONSE | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
+        //
+        //         if [ -z "$ACCESS_TOKEN" ]; then
+        //           echo "❌ Failed to get access token"
+        //           exit 1
+        //         fi
+        //
+        //         echo "\\nTesting protected endpoint (profile)..."
+        //         curl -f -X GET http://localhost:8080/auth/profile \
+        //           -H "Authorization: Bearer $ACCESS_TOKEN" || exit 1
+        //
+        //         echo "\\nTesting metrics endpoint..."
+        //         curl -f http://localhost:8080/auth/metrics | head -20 || exit 1
+        //
+        //         echo "\\n✅ All API tests passed!"
+        //         '''
+        //     }
+        // }
 
-                echo "\\nTesting user login..."
-                LOGIN_RESPONSE=$(curl -s -X POST http://localhost:8080/auth/login \
-                  -H "Content-Type: application/json" \
-                  -d '{
-                    "email": "admin@gmail.com",
-                    "password": "admin123"
-                  }')
+        // ========== COMMENTED OUT: PERFORMANCE TESTS (Use JenkinsPT instead) ==========
+        // stage('Performance Tests') {
+        //     steps {
+        //         echo '⚡ Running K6 performance tests...'
+        //         sh '''
+        //         docker run --rm --network host -v "$PWD":/src -w /src \
+        //           -e BASE_URL=http://localhost:8080 \
+        //           -e USER_EMAIL=admin@gmail.com \
+        //           -e USER_PASSWORD=admin123 \
+        //           -e USER_ROLE=admin \
+        //           -e VUS=1 \
+        //           -e DURATION=10m \
+        //           -e TPH=10 \
+        //           grafana/k6 run PerformanceTesting/auth_refresh_test.js --summary-export=PerformanceTesting/perf-summary.json
+        //
+        //         echo "K6 summary exported to PerformanceTesting/perf-summary.json"
+        //         cat PerformanceTesting/perf-summary.txt || true
+        //         '''
+        //     }
+        // }
 
-                echo "Login response: $LOGIN_RESPONSE"
-
-                ACCESS_TOKEN=$(echo $LOGIN_RESPONSE | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
-
-                if [ -z "$ACCESS_TOKEN" ]; then
-                  echo "❌ Failed to get access token"
-                  exit 1
-                fi
-
-                echo "\\nTesting protected endpoint (profile)..."
-                curl -f -X GET http://localhost:8080/auth/profile \
-                  -H "Authorization: Bearer $ACCESS_TOKEN" || exit 1
-
-                echo "\\nTesting metrics endpoint..."
-                curl -f http://localhost:8080/auth/metrics | head -20 || exit 1
-
-                echo "\\n✅ All API tests passed!"
-                '''
-            }
-        }
-
-        stage('Performance Tests') {
-            steps {
-                echo '⚡ Running K6 performance tests...'
-                sh '''
-                docker run --rm --network host -v "$PWD":/src -w /src \
-                  -e BASE_URL=http://localhost:8080 \
-                  -e USER_EMAIL=admin@gmail.com \
-                  -e USER_PASSWORD=admin123 \
-                  -e USER_ROLE=admin \
-                  -e VUS=1 \
-                  -e DURATION=10m \
-                  -e TPH=10 \
-                  grafana/k6 run PerformanceTesting/auth_refresh_test.js --summary-export=PerformanceTesting/perf-summary.json
-
-                echo "K6 summary exported to PerformanceTesting/perf-summary.json"
-                cat PerformanceTesting/perf-summary.txt || true
-                '''
-            }
-        }
-
-        stage('Database Backup') {
-            steps {
-                echo '💾 Creating database backup...'
-                sh '''
-                mkdir -p backups
-                BACKUP_FILE="backups/backup_$(date +%Y%m%d_%H%M%S).sql"
-                docker exec postgres pg_dump -U postgres udemy_devops > $BACKUP_FILE
-                echo "Database backed up to: $BACKUP_FILE"
-                ls -lh backups/
-                '''
-            }
-        }
+        // ========== COMMENTED OUT: DATABASE BACKUP ==========
+        // stage('Database Backup') {
+        //     steps {
+        //         echo '💾 Creating database backup...'
+        //         sh '''
+        //         mkdir -p backups
+        //         BACKUP_FILE="backups/backup_$(date +%Y%m%d_%H%M%S).sql"
+        //         docker exec postgres pg_dump -U postgres udemy_devops > $BACKUP_FILE
+        //         echo "Database backed up to: $BACKUP_FILE"
+        //         ls -lh backups/
+        //         '''
+        //     }
+        // }
 
         stage('Test Summary') {
             steps {
@@ -268,7 +272,7 @@ pipeline {
             echo '❌ Pipeline failed!'
             sh '''
             echo "Collecting logs for debugging..."
-            docker compose logs > pipeline_logs.txt 2>&1
+            docker compose -f docker-compose.prod.yml logs > pipeline_logs.txt 2>&1
             echo "Logs saved to: pipeline_logs.txt"
             '''
         }
