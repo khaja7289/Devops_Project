@@ -24,11 +24,12 @@ services:
     restart: unless-stopped
 
   flyway:
-    image: flyway/flyway:latest
+    build:
+      context: .
+      dockerfile: flyway.Dockerfile
+    image: devops-project-flyway-staging
     container_name: flyway-staging
     command: -url=jdbc:postgresql://postgres:5432/udemy_devops_staging -user=staging_user -password=staging_password -locations=filesystem:/flyway/sql migrate
-    volumes:
-      - ./services/auth-service/migrations:/flyway/sql
     depends_on:
       postgres:
         condition: service_healthy

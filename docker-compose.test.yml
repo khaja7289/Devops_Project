@@ -17,11 +17,12 @@ services:
       retries: 5
 
   flyway-test:
-    image: flyway/flyway:latest
+    build:
+      context: .
+      dockerfile: flyway.Dockerfile
+    image: devops-project-flyway-test
     container_name: flyway-test
     command: -url=jdbc:postgresql://postgres-test:5432/test_db -user=postgres -password=postgres -locations=filesystem:/flyway/sql migrate
-    volumes:
-      - ./services/auth-service/migrations:/flyway/sql
     depends_on:
       postgres-test:
         condition: service_healthy
