@@ -146,13 +146,13 @@ pipeline {
                 echo '❤️ Checking service health...'
                 sh '''
                 echo "Checking Auth Service health..."
-                curl -f http://localhost:3000/health || exit 1
+                docker compose -f docker-compose.prod.yml exec -T auth-service node -e "const http=require('http'); const req=http.get('http://127.0.0.1:3000/health', res => { if (res.statusCode !== 200) { console.error('status', res.statusCode); process.exit(1); } else { console.log('OK'); process.exit(0); } }); req.on('error', err => { console.error(err.message); process.exit(1); });"
 
                 echo "Checking Prometheus health..."
-                curl -f http://localhost:9090/-/healthy || exit 1
+                docker compose -f docker-compose.prod.yml exec -T prometheus wget --spider --quiet http://localhost:9090/-/healthy || exit 1
 
                 echo "Checking Grafana health..."
-                curl -f http://localhost:3001/api/health || exit 1
+                docker compose -f docker-compose.prod.yml exec -T grafana wget --spider --quiet http://localhost:3000/api/health || exit 1
 
                 echo "All services are healthy! ✅"
                 '''
