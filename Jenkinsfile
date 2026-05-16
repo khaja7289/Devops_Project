@@ -117,8 +117,8 @@ pipeline {
             steps {
                 echo '🔄 Verifying database migrations...'
                 sh '''
-                docker logs flyway || true
-                docker exec postgres psql -U postgres -d udemy_devops -c "SELECT version, description, success FROM flyway_schema_history ORDER BY version;"
+                docker logs flyway-prod || true
+                docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT version, description, success FROM flyway_schema_history ORDER BY version;"
                 '''
             }
         }
@@ -127,7 +127,7 @@ pipeline {
             steps {
                 echo '👥 Verifying users table...'
                 sh '''
-                docker exec postgres psql -U postgres -d udemy_devops -c "SELECT id, email, role, created_at FROM users LIMIT 5;"
+                docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT id, email, role, created_at FROM users LIMIT 5;"
                 '''
             }
         }
@@ -136,7 +136,7 @@ pipeline {
             steps {
                 echo '🔑 Verifying refresh_tokens table...'
                 sh '''
-                docker exec postgres psql -U postgres -d udemy_devops -c "SELECT id, user_id, created_at FROM refresh_tokens LIMIT 5;"
+                docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT id, user_id, created_at FROM refresh_tokens LIMIT 5;"
                 '''
             }
         }
