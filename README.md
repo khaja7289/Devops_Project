@@ -151,15 +151,27 @@ Auth Service is running
 
 ### 2. Database Verification - Users Table
 ```bash
-docker exec postgres psql -U postgres -d udemy_devops -c "SELECT * FROM users;"
+docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT * FROM users;"
 ```
 Expected: Lists all registered users
 
 ### 3. Database Verification - Refresh Tokens Table
 ```bash
-docker exec postgres psql -U postgres -d udemy_devops -c "SELECT * FROM refresh_tokens;"
+docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT * FROM refresh_tokens;"
 ```
 Expected: Shows valid refresh tokens after login
+
+### 4. Additional Database Tables
+Verify the key application tables directly from the PostgreSQL container:
+```bash
+docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT * FROM flyway_schema_history;"
+```
+Expected: Shows Flyway migration history and applied versions
+
+The three core tables to validate are:
+- `users`
+- `refresh_tokens`
+- `flyway_schema_history`
 
 ### 4. User Registration Test
 ```bash
