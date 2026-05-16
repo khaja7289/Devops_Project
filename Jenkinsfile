@@ -116,6 +116,26 @@ pipeline {
             }
         }
 
+        stage('Create Test Users') {
+            steps {
+                echo '👤 Registering test users...'
+                sh '''
+                echo "Creating test users via registration API..."
+                curl -X POST http://localhost:8080/auth/register \
+                  -H "Content-Type: application/json" \
+                  -d '{"email":"admin@gmail.com","password":"admin123","role":"admin"}' || true
+
+                curl -X POST http://localhost:8080/auth/register \
+                  -H "Content-Type: application/json" \
+                  -d '{"email":"instructor@gmail.com","password":"inst123","role":"instructor"}' || true
+
+                curl -X POST http://localhost:8080/auth/register \
+                  -H "Content-Type: application/json" \
+                  -d '{"email":"student@gmail.com","password":"stud123","role":"student"}' || true
+                '''
+            }
+        }
+
         stage('Database Migrations') {
             steps {
                 echo '🔄 Verifying database migrations...'
