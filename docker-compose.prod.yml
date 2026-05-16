@@ -81,12 +81,11 @@ services:
     restart: always
 
   prometheus:
-    image: prom/prometheus:latest
+    image: khaja7289/devops-project-pipeline:prometheus
     container_name: prometheus-prod
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data-prod:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
