@@ -89,6 +89,9 @@ pipeline {
                 docker build -t khaja7289/devops-project-pipeline:prometheus-$IMAGE_TAG prometheus
                 docker tag khaja7289/devops-project-pipeline:prometheus-$IMAGE_TAG khaja7289/devops-project-pipeline:prometheus
 
+                docker build -t devops-project-flyway-prod:$IMAGE_TAG -f flyway.Dockerfile .
+                docker tag devops-project-flyway-prod:$IMAGE_TAG devops-project-flyway-prod:latest
+
                 if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_PASSWORD" ]; then
                   docker push khaja7289/devops-project-pipeline:auth-service-$IMAGE_TAG
                   docker push khaja7289/devops-project-pipeline:auth-service
