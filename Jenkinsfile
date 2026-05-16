@@ -60,8 +60,8 @@ pipeline {
                 echo '🔐 Setting up secrets...'
                 sh '''
                 mkdir -p services/auth-service/secrets
-                echo "access_secret" > services/auth-service/secrets/jwt_secret.txt
-                echo "refresh_secret" > services/auth-service/secrets/jwt_refresh_secret.txt
+                echo -n "access_secret" > services/auth-service/secrets/jwt_secret.txt
+                echo -n "refresh_secret" > services/auth-service/secrets/jwt_refresh_secret.txt
                 '''
             }
         }
