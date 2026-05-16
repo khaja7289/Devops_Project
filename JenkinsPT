@@ -36,8 +36,10 @@ pipeline {
                 echo "Verifying services are running..."
                 docker ps --format "table {{.Names}}\t{{.Status}}"
 
-                echo "Checking service health..."
-                curl -f http://localhost:8080/auth/health || echo "Warning: Auth service not responding"
+                echo "Checking service health (from inside compose network)..."
+                docker compose -f docker-compose.prod.yml exec -T auth-service \
+                  node -e "const http=require('http'); const req=http.get('http://127.0.0.1:3000/health', res => { if (res.statusCode!==200) { console.error('status', res.statusCode); process.exit(1); } else { console.log('OK'); process.exit(0); } }); req.on('error', err => { console.error(err.message); process.exit(1); });" \
+                || echo "Warning: Auth service not responding"
                 '''
             }
         }
@@ -48,8 +50,8 @@ pipeline {
                 sh '''
                 mkdir -p PerformanceTesting/results
 
-                docker run --rm --network host \
-                  -v "$PWD":/src -w /src \
+                                docker run --rm --network host \
+                                    -v "${WORKSPACE}:/src" -w /src \
                   -e BASE_URL=${BASE_URL} \
                   -e USER_EMAIL=${USER_EMAIL} \
                   -e USER_PASSWORD=${USER_PASSWORD} \
