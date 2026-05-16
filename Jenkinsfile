@@ -146,7 +146,7 @@ pipeline {
                 echo '❤️ Checking service health...'
                 sh '''
                 echo "Checking Auth Service health..."
-                curl -f http://localhost:8080/auth/health || exit 1
+                curl -f http://localhost:3000/health || exit 1
 
                 echo "Checking Prometheus health..."
                 curl -f http://localhost:9090/-/healthy || exit 1
