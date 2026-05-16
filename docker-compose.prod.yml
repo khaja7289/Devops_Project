@@ -1,50 +1,35 @@
-version: '3.8'
-
-# Production Environment - High availability, security, and monitoring
-# Use: docker stack deploy -c docker-compose.prod.yml auth-service
-# Requires Docker Swarm or Kubernetes for proper secret management
-
 services:
   postgres:
     image: postgres:15-alpine
     container_name: postgres-prod
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: udemy_devops
     ports:
       - "5432:5432"
     volumes:
       - pgdata-prod:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: always
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G
-        reservations:
-          cpus: '1'
-          memory: 2G
 
   flyway:
     image: flyway/flyway:latest
     container_name: flyway-prod
-    command: -url=jdbc:postgresql://postgres:5432/${DB_NAME} -user=${DB_USER} -password=${DB_PASSWORD} -locations=filesystem:/flyway/sql migrate
+    command: -url=jdbc:postgresql://postgres:5432/udemy_devops -user=postgres -password=postgres -locations=filesystem:/flyway/sql migrate
     volumes:
       - ./services/auth-service/migrations:/flyway/sql
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      FLYWAY_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
-      FLYWAY_USER: ${DB_USER}
-      FLYWAY_PASSWORD: ${DB_PASSWORD}
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/udemy_devops
+      FLYWAY_USER: postgres
+      FLYWAY_PASSWORD: postgres
       FLYWAY_LOCATIONS: filesystem:/flyway/sql
 
   auth-service:
@@ -57,9 +42,9 @@ services:
         condition: service_healthy
     environment:
       DB_HOST: postgres
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: udemy_devops
       DB_PORT: 5432
       PORT: 3000
       NODE_ENV: production
@@ -75,25 +60,13 @@ services:
       retries: 10
       start_period: 20s
     restart: always
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.5'
-          memory: 256M
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
+    command: sh -c 'export JWT_SECRET=$$(cat /run/secrets/jwt_secret) && export JWT_REFRESH_SECRET=$$(cat /run/secrets/jwt_refresh_secret) && node index.js'
 
   api-gateway:
     image: khaja7289/devops-project-pipeline:api-gateway
     container_name: api-gateway-prod
     ports:
-      - "80:80"
+      - "8080:80"
       - "443:443"
     depends_on:
       auth-service:
@@ -106,15 +79,6 @@ services:
       timeout: 5s
       retries: 10
     restart: always
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.5'
-          memory: 256M
 
   prometheus:
     image: prom/prometheus:latest
@@ -123,7 +87,6 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data-prod:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -136,104 +99,47 @@ services:
       timeout: 5s
       retries: 10
     restart: always
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G
-        reservations:
-          cpus: '1'
-          memory: 2G
-
-  alertmanager:
-    image: prom/alertmanager:latest
-    container_name: alertmanager-prod
-    ports:
-      - "9093:9093"
-    volumes:
-      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - alertmanager_data-prod:/alertmanager
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9093/-/healthy"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: always
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.5'
-          memory: 256M
 
   grafana:
     image: grafana/grafana:latest
     container_name: grafana-prod
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       prometheus:
         condition: service_healthy
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_SECURITY_ADMIN_PASSWORD: admin
       GF_SECURITY_ADMIN_USER: admin
-      GF_INSTALL_PLUGINS: grafana-piechart-panel
       GF_USERS_ALLOW_SIGN_UP: 'false'
     volumes:
       - grafana_data-prod:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: always
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
 
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter-prod
     ports:
-      - "9100:9100"
+      - "9101:9100"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9100/metrics"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: always
-    deploy:
-      replicas: 1
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.5'
-          memory: 256M
 
 volumes:
   pgdata-prod:
   prometheus_data-prod:
-  alertmanager_data-prod:
   grafana_data-prod:
 
 secrets:
   jwt_secret:
-    external: true
+    file: ./services/auth-service/secrets/jwt_secret.txt
   jwt_refresh_secret:
-    external: true
+    file: ./services/auth-service/secrets/jwt_refresh_secret.txt

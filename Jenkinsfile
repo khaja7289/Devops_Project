@@ -272,7 +272,7 @@ pipeline {
             echo '❌ Pipeline failed!'
             sh '''
             echo "Collecting logs for debugging..."
-            docker compose -f docker-compose.prod.yml logs > pipeline_logs.txt 2>&1
+            docker compose -f docker-compose.prod.yml logs > pipeline_logs.txt 2>&1 || true
             echo "Logs saved to: pipeline_logs.txt"
             '''
         }
