@@ -91,7 +91,7 @@ services:
       - '--storage.tsdb.retention.time=90d'
       - '--web.enable-lifecycle'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -124,7 +124,7 @@ services:
     ports:
       - "9101:9100"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9100/metrics"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9100/metrics"]
       interval: 5s
       timeout: 5s
       retries: 10
