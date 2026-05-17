@@ -94,7 +94,9 @@ pipeline {
             steps {
                 echo '🚀 Building and deploying containers (PROD)...'
                 sh '''
-                docker compose -f docker-compose.prod.yml down || true
+                docker compose -f docker-compose.prod.yml down -v || true
+                docker rm -f postgres-prod flyway-prod auth-service-prod api-gateway-prod prometheus-prod grafana-prod node-exporter-prod 2>/dev/null || true
+                sleep 2
                 docker compose -f docker-compose.prod.yml up -d --build
                 echo "Waiting for services to be healthy..."
                 sleep 15
