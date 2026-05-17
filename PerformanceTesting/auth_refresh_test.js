@@ -8,12 +8,13 @@ const AUTH_URL = `${BASE_URL}/auth`;
 const VUS = __ENV.VUS ? parseInt(__ENV.VUS, 10) : 1;
 const DURATION = __ENV.DURATION || '10m';
 const TPH = __ENV.TPH ? parseInt(__ENV.TPH, 10) : 10;
-const LOGIN_EMAIL = __ENV.USER_EMAIL || 'admin@gmail.com';
-const LOGIN_PASSWORD = __ENV.USER_PASSWORD || 'admin123';
 const REGISTER_ROLE = __ENV.USER_ROLE || 'student';
-const REGISTER_PASSWORD = __ENV.REGISTER_PASSWORD || 'Password123!';
-const ROLE = __ENV.USER_ROLE || 'admin';
+const REGISTER_PASSWORD = 'Password123!';
+const ROLE = __ENV.USER_ROLE || 'student';
 const TARGET_ITERATION_SECONDS = (60 * 60 * VUS) / TPH;
+
+let testUserEmail = null;
+let testUserPassword = REGISTER_PASSWORD;
 
 export const options = {
   vus: VUS,
@@ -68,25 +69,13 @@ function recordMetrics(endpoint, res, success) {
   endpointLatency.add(res.timings.duration, { endpoint, status: `${res.status}` });
 }
 
-function registerUser(email) {
-  const res = http.post(
-    `${AUTH_URL}/register`,
-    JSON.stringify({ email, password: REGISTER_PASSWORD, role: REGISTER_ROLE }),
-    jsonHeaders()
-  );
+function loginUser(email = null, password = null) {
+  const loginEmail = email || testUserEmail;
+  const loginPassword = password || testUserPassword;
 
-  const success = check(res, {
-    'register returned 201 or 409': (r) => r.status === 201 || r.status === 409,
-  });
-
-  recordMetrics('register', res, success);
-  return success;
-}
-
-function loginUser() {
   const res = http.post(
     `${AUTH_URL}/login`,
-    JSON.stringify({ email: LOGIN_EMAIL, password: LOGIN_PASSWORD }),
+    JSON.stringify({ email: loginEmail, password: loginPassword }),
     jsonHeaders()
   );
 
@@ -154,19 +143,36 @@ function callApi(method, endpoint, path, body = null, auth = false, expectedStat
 }
 
 export function setup() {
-  const randomEmail = `perf_${Math.floor(Math.random() * 100000)}@example.com`;
+  testUserEmail = `perf_${Math.floor(Math.random() * 1000000)}@example.com`;
 
-  // Register a new user
-  registerUser(randomEmail);
+  console.log(`Setting up test user: ${testUserEmail}`);
 
-  // Login with admin account
-  if (!loginUser()) {
-    throw new Error('Setup failed: Could not login');
+  // Register the new user
+  const registerRes = http.post(
+    `${AUTH_URL}/register`,
+    JSON.stringify({ email: testUserEmail, password: testUserPassword, role: REGISTER_ROLE }),
+    jsonHeaders()
+  );
+
+  const registerSuccess = check(registerRes, {
+    'register returned 201 or 409': (r) => r.status === 201 || r.status === 409,
+  });
+
+  if (!registerSuccess) {
+    console.error(`Registration failed: ${registerRes.status} - ${registerRes.body}`);
   }
+
+  // Login with the same user
+  if (!loginUser(testUserEmail, testUserPassword)) {
+    throw new Error('Setup failed: Could not login with registered user');
+  }
+
+  console.log(`Setup complete. Test user: ${testUserEmail}`);
 
   return {
     accessToken,
     refreshToken,
+    testUserEmail,
   };
 }
 
@@ -174,11 +180,12 @@ export default function (data) {
   iteration += 1;
   accessToken = data.accessToken;
   refreshToken = data.refreshToken;
+  testUserEmail = data.testUserEmail;
 
   const iterationStart = Date.now();
 
   if (!accessToken || !refreshToken) {
-    if (!loginUser()) {
+    if (!loginUser(testUserEmail, testUserPassword)) {
       return;
     }
   }
