@@ -60,8 +60,8 @@ pipeline {
                 echo '🔐 Setting up secrets...'
                 sh '''
                 mkdir -p services/auth-service/secrets
-                echo -n "access_secret" > services/auth-service/secrets/jwt_secret.txt
-                echo -n "refresh_secret" > services/auth-service/secrets/jwt_refresh_secret.txt
+                echo "access_secret" > services/auth-service/secrets/jwt_secret.txt
+                echo "refresh_secret" > services/auth-service/secrets/jwt_refresh_secret.txt
                 '''
             }
         }
@@ -89,9 +89,6 @@ pipeline {
                 docker build -t khaja7289/devops-project-pipeline:prometheus-$IMAGE_TAG prometheus
                 docker tag khaja7289/devops-project-pipeline:prometheus-$IMAGE_TAG khaja7289/devops-project-pipeline:prometheus
 
-                docker build -t devops-project-flyway-prod:$IMAGE_TAG -f flyway.Dockerfile .
-                docker tag devops-project-flyway-prod:$IMAGE_TAG devops-project-flyway-prod:latest
-
                 if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_PASSWORD" ]; then
                   docker push khaja7289/devops-project-pipeline:auth-service-$IMAGE_TAG
                   docker push khaja7289/devops-project-pipeline:auth-service
@@ -112,26 +109,6 @@ pipeline {
                 docker compose -f docker-compose.prod.yml up -d --build
                 echo "Waiting for services to be healthy..."
                 sleep 15
-                '''
-            }
-        }
-
-        stage('Create Test Users') {
-            steps {
-                echo '👤 Registering test users...'
-                sh '''
-                echo "Creating test users via registration API..."
-                curl -X POST http://localhost:8080/auth/register \
-                  -H "Content-Type: application/json" \
-                  -d '{"email":"admin@gmail.com","password":"admin123","role":"admin"}' || true
-
-                curl -X POST http://localhost:8080/auth/register \
-                  -H "Content-Type: application/json" \
-                  -d '{"email":"instructor@gmail.com","password":"inst123","role":"instructor"}' || true
-
-                curl -X POST http://localhost:8080/auth/register \
-                  -H "Content-Type: application/json" \
-                  -d '{"email":"student@gmail.com","password":"stud123","role":"student"}' || true
                 '''
             }
         }

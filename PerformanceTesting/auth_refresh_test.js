@@ -3,13 +3,14 @@ import { check, group, sleep } from 'k6';
 import { Trend, Counter } from 'k6/metrics';
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 
-const BASE_URL = `${__ENV.BASE_URL || 'http://localhost:8080'}/auth`;
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
+const AUTH_URL = `${BASE_URL}/auth`;
 const VUS = __ENV.VUS ? parseInt(__ENV.VUS, 10) : 1;
 const DURATION = __ENV.DURATION || '10m';
 const TPH = __ENV.TPH ? parseInt(__ENV.TPH, 10) : 10;
 const LOGIN_EMAIL = __ENV.USER_EMAIL || 'admin@gmail.com';
 const LOGIN_PASSWORD = __ENV.USER_PASSWORD || 'admin123';
-const REGISTER_ROLE = __ENV.REGISTER_ROLE || 'student';
+const REGISTER_ROLE = __ENV.USER_ROLE || 'student';
 const REGISTER_PASSWORD = __ENV.REGISTER_PASSWORD || 'Password123!';
 const ROLE = __ENV.USER_ROLE || 'admin';
 const TARGET_ITERATION_SECONDS = (60 * 60 * VUS) / TPH;
@@ -67,9 +68,24 @@ function recordMetrics(endpoint, res, success) {
   endpointLatency.add(res.timings.duration, { endpoint, status: `${res.status}` });
 }
 
+function registerUser(email) {
+  const res = http.post(
+    `${AUTH_URL}/register`,
+    JSON.stringify({ email, password: REGISTER_PASSWORD, role: REGISTER_ROLE }),
+    jsonHeaders()
+  );
+
+  const success = check(res, {
+    'register returned 201 or 409': (r) => r.status === 201 || r.status === 409,
+  });
+
+  recordMetrics('register', res, success);
+  return success;
+}
+
 function loginUser() {
   const res = http.post(
-    `${BASE_URL}/login`,
+    `${AUTH_URL}/login`,
     JSON.stringify({ email: LOGIN_EMAIL, password: LOGIN_PASSWORD }),
     jsonHeaders()
   );
@@ -83,16 +99,18 @@ function loginUser() {
   recordMetrics('login', res, success);
 
   if (!success) {
-    throw new Error(`Login failed: ${res.status}`);
+    console.error(`Login failed: ${res.status} - ${res.body}`);
+    return false;
   }
 
   accessToken = res.json('accessToken');
   refreshToken = res.json('refreshToken');
+  return true;
 }
 
 function refreshTokenIfNeeded() {
   const res = http.post(
-    `${BASE_URL}/refresh`,
+    `${AUTH_URL}/refresh`,
     JSON.stringify({ refreshToken }),
     jsonHeaders()
   );
@@ -112,7 +130,7 @@ function refreshTokenIfNeeded() {
 }
 
 function callApi(method, endpoint, path, body = null, auth = false, expectedStatuses = [200]) {
-  const url = `${BASE_URL}${path}`;
+  const url = `${path.startsWith('/auth') ? BASE_URL : BASE_URL}${path}`;
   const params = auth ? jsonHeaders(accessToken) : jsonHeaders();
   let res;
 
@@ -137,17 +155,14 @@ function callApi(method, endpoint, path, body = null, auth = false, expectedStat
 
 export function setup() {
   const randomEmail = `perf_${Math.floor(Math.random() * 100000)}@example.com`;
-  const registerRes = http.post(
-    `${BASE_URL}/register`,
-    JSON.stringify({ email: randomEmail, password: REGISTER_PASSWORD, role: REGISTER_ROLE }),
-    jsonHeaders()
-  );
 
-  check(registerRes, {
-    'register status is 201 or 409': (r) => r.status === 201 || r.status === 409,
-  });
+  // Register a new user
+  registerUser(randomEmail);
 
-  loginUser();
+  // Login with admin account
+  if (!loginUser()) {
+    throw new Error('Setup failed: Could not login');
+  }
 
   return {
     accessToken,
@@ -163,30 +178,34 @@ export default function (data) {
   const iterationStart = Date.now();
 
   if (!accessToken || !refreshToken) {
-    loginUser();
+    if (!loginUser()) {
+      return;
+    }
   }
 
-  group('Project API coverage workflow', () => {
+  group('Complete API workflow', () => {
+    // Health check - no auth required
     const health = callApi('GET', 'health', '/health', null, false, [200]);
-    const metrics = callApi('GET', 'metrics', '/metrics', null, false, [200]);
-    const profile = callApi('GET', 'profile', '/profile', null, true, [200]);
 
+    // Metrics - no auth required
+    const metrics = callApi('GET', 'metrics', '/auth/metrics', null, false, [200]);
+
+    // Profile - requires auth
+    const profile = callApi('GET', 'profile', '/auth/profile', null, true, [200]);
+
+    // Role-based endpoint
     const roleRoute = ROLE === 'admin' ? 'admin' : ROLE === 'instructor' ? 'instructor' : 'student';
-    const roleResult = callApi('GET', roleRoute, `/${roleRoute}`, null, true, [200]);
+    const roleResult = callApi('GET', roleRoute, `/auth/${roleRoute}`, null, true, [200]);
 
+    // Refresh token
     refreshTokenIfNeeded();
-    const logoutResult = callApi('POST', 'logout', '/logout', { refreshToken }, false, [200]);
+
+    // Logout
+    const logoutResult = callApi('POST', 'logout', '/auth/logout', { refreshToken }, false, [200]);
 
     if (logoutResult.success) {
       accessToken = null;
       refreshToken = null;
-    }
-
-    if (health.res && health.res.status !== 200) {
-      check(health.res, { 'health check passed': (r) => r.status === 200 });
-    }
-    if (profile.res && profile.res.status !== 200) {
-      check(profile.res, { 'profile check passed': (r) => r.status === 200 });
     }
 
     const thinkTime = 2 + Math.random();

@@ -51,8 +51,9 @@ services:
       NODE_ENV: production
       LOG_LEVEL: warn
       LOG_FORMAT: json
-      JWT_SECRET: access_secret
-      JWT_REFRESH_SECRET: refresh_secret
+    secrets:
+      - jwt_secret
+      - jwt_refresh_secret
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 5s
@@ -60,7 +61,7 @@ services:
       retries: 10
       start_period: 20s
     restart: always
-    command: node index.js
+    command: sh -c 'export JWT_SECRET=$$(cat /run/secrets/jwt_secret) && export JWT_REFRESH_SECRET=$$(cat /run/secrets/jwt_refresh_secret) && node index.js'
 
   api-gateway:
     image: khaja7289/devops-project-pipeline:api-gateway
