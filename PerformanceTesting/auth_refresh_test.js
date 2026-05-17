@@ -5,6 +5,7 @@ import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const AUTH_URL = `${BASE_URL}/auth`;
+const HEALTH_URL = 'http://localhost:3000/health';
 const VUS = __ENV.VUS ? parseInt(__ENV.VUS, 10) : 1;
 const DURATION = __ENV.DURATION || '10m';
 const TPH = __ENV.TPH ? parseInt(__ENV.TPH, 10) : 10;
@@ -191,8 +192,12 @@ export default function (data) {
   }
 
   group('Complete API workflow', () => {
-    // Health check - no auth required
-    const health = callApi('GET', 'health', '/health', null, false, [200]);
+    // Health check - direct to auth service
+    const healthRes = http.get(HEALTH_URL);
+    const healthSuccess = check(healthRes, {
+      'health returned 200': (r) => r.status === 200,
+    });
+    recordMetrics('health', healthRes, healthSuccess);
 
     // Metrics - no auth required
     const metrics = callApi('GET', 'metrics', '/auth/metrics', null, false, [200]);
@@ -219,7 +224,7 @@ export default function (data) {
     const elapsed = (Date.now() - iterationStart) / 1000;
     const paceTime = Math.max(0, TARGET_ITERATION_SECONDS - elapsed - thinkTime);
 
-    logStep('health', thinkTime, paceTime, health.res ? health.res.status : 0);
+    logStep('health', thinkTime, paceTime, healthRes ? healthRes.status : 0);
     logStep('metrics', thinkTime, paceTime, metrics.res ? metrics.res.status : 0);
     logStep('profile', thinkTime, paceTime, profile.res ? profile.res.status : 0);
     logStep(roleRoute, thinkTime, paceTime, roleResult.res ? roleResult.res.status : 0);
