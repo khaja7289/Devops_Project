@@ -46,7 +46,14 @@ choco install k6
 cd "d:\git projects\Devops_Project"
 k6 run PerformanceTesting/auth_refresh_test.js
 ```
+Alternatively, use the new compose helper service to run the latest script from the repo without rebuilding any image:
 
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.k6.yml run --rm k6 \
+  run auth_refresh_test.js \
+  --summary-export=results/auth_refresh_summary.json \
+  --out=json=results/auth_refresh_results.json
+```
 3. Override defaults with environment variables:
 
 ```bash

@@ -50,18 +50,10 @@ pipeline {
                 sh '''
                 mkdir -p PerformanceTesting/results
 
-                docker run --rm --network host \
-                  -v "${WORKSPACE}:/src" -w /src \
-                  -e BASE_URL=${BASE_URL} \
-                  -e USER_EMAIL=${USER_EMAIL} \
-                  -e USER_PASSWORD=${USER_PASSWORD} \
-                  -e USER_ROLE=${USER_ROLE} \
-                  -e VUS=5 \
-                  -e DURATION=5m \
-                  -e TPH=50 \
-                  grafana/k6 run PerformanceTesting/auth_refresh_test.js \
-                  --summary-export=PerformanceTesting/results/auth_refresh_summary.json \
-                  --out=json=PerformanceTesting/results/auth_refresh_results.json
+                docker compose -f docker-compose.prod.yml -f docker-compose.k6.yml run --rm k6 \
+                  run auth_refresh_test.js \
+                  --summary-export=results/auth_refresh_summary.json \
+                  --out=json=results/auth_refresh_results.json
 
                 echo "✅ Auth Refresh Test completed"
                 '''
