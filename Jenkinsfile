@@ -95,7 +95,6 @@ pipeline {
                 echo '🚀 Building and deploying containers (PROD)...'
                 sh '''
                 docker compose -f docker-compose.prod.yml down -v || true
-                docker rm -f postgres-prod flyway-prod auth-service-prod api-gateway-prod prometheus-prod grafana-prod node-exporter-prod 2>/dev/null || true
                 sleep 2
                 docker compose -f docker-compose.prod.yml up -d --build
                 echo "Waiting for services to be healthy..."
@@ -108,8 +107,8 @@ pipeline {
             steps {
                 echo '🔄 Verifying database migrations...'
                 sh '''
-                docker logs flyway-prod || true
-                docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT version, description, success FROM flyway_schema_history ORDER BY version;"
+                docker compose -f docker-compose.prod.yml logs flyway || true
+                docker compose -f docker-compose.prod.yml exec -T postgres psql -U postgres -d udemy_devops -c "SELECT version, description, success FROM flyway_schema_history ORDER BY version;"
                 '''
             }
         }
@@ -118,7 +117,7 @@ pipeline {
             steps {
                 echo '👥 Verifying users table...'
                 sh '''
-                docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT id, email, role, created_at FROM users LIMIT 5;"
+                docker compose -f docker-compose.prod.yml exec -T postgres psql -U postgres -d udemy_devops -c "SELECT id, email, role, created_at FROM users LIMIT 5;"
                 '''
             }
         }
@@ -127,7 +126,7 @@ pipeline {
             steps {
                 echo '🔑 Verifying refresh_tokens table...'
                 sh '''
-                docker exec postgres-prod psql -U postgres -d udemy_devops -c "SELECT id, user_id, created_at FROM refresh_tokens LIMIT 5;"
+                docker compose -f docker-compose.prod.yml exec -T postgres psql -U postgres -d udemy_devops -c "SELECT id, user_id, created_at FROM refresh_tokens LIMIT 5;"
                 '''
             }
         }
