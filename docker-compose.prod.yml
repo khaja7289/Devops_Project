@@ -1,7 +1,6 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: postgres-prod
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -22,7 +21,6 @@ services:
       context: .
       dockerfile: flyway.Dockerfile
     image: devops-project-flyway-prod
-    container_name: flyway-prod
     command: -url=jdbc:postgresql://postgres:5432/udemy_devops -user=postgres -password=postgres -locations=filesystem:/flyway/sql migrate
     depends_on:
       postgres:
@@ -35,7 +33,6 @@ services:
 
   auth-service:
     image: khaja7289/devops-project-pipeline:auth-service
-    container_name: auth-service-prod
     ports:
       - "3000:3000"
     depends_on:
@@ -63,7 +60,6 @@ services:
 
   api-gateway:
     image: khaja7289/devops-project-pipeline:api-gateway
-    container_name: api-gateway-prod
     ports:
       - "8080:80"
       - "443:443"
@@ -79,7 +75,6 @@ services:
 
   prometheus:
     image: khaja7289/devops-project-pipeline:prometheus
-    container_name: prometheus-prod
     ports:
       - "9090:9090"
     volumes:
@@ -98,7 +93,6 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana-prod
     ports:
       - "3001:3000"
     depends_on:
@@ -119,7 +113,6 @@ services:
 
   node-exporter:
     image: prom/node-exporter:latest
-    container_name: node-exporter-prod
     ports:
       - "9101:9100"
     healthcheck:

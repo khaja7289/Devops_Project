@@ -3,7 +3,6 @@ version: '3.8'
 services:
   postgres-test:
     image: postgres:15
-    container_name: postgres-test
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -21,7 +20,6 @@ services:
       context: .
       dockerfile: flyway.Dockerfile
     image: devops-project-flyway-test
-    container_name: flyway-test
     command: -url=jdbc:postgresql://postgres-test:5432/test_db -user=postgres -password=postgres -locations=filesystem:/flyway/sql migrate
     depends_on:
       postgres-test:

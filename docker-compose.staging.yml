@@ -7,7 +7,6 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: postgres-staging
     environment:
       POSTGRES_USER: staging_user
       POSTGRES_PASSWORD: staging_password
@@ -28,7 +27,6 @@ services:
       context: .
       dockerfile: flyway.Dockerfile
     image: devops-project-flyway-staging
-    container_name: flyway-staging
     command: -url=jdbc:postgresql://postgres:5432/udemy_devops_staging -user=staging_user -password=staging_password -locations=filesystem:/flyway/sql migrate
     depends_on:
       postgres:
@@ -41,7 +39,6 @@ services:
 
   auth-service:
     image: khaja7289/devops-project-pipeline:auth-service
-    container_name: auth-service-staging
     ports:
       - "3000:3000"
     depends_on:
@@ -70,7 +67,6 @@ services:
 
   api-gateway:
     image: khaja7289/devops-project-pipeline:api-gateway
-    container_name: api-gateway-staging
     ports:
       - "8080:80"
     depends_on:
@@ -85,7 +81,6 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: prometheus-staging
     ports:
       - "9090:9090"
     volumes:
@@ -105,7 +100,6 @@ services:
 
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: alertmanager-staging
     ports:
       - "9093:9093"
     volumes:
@@ -123,7 +117,6 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: grafana-staging
     ports:
       - "3001:3000"
     depends_on:
@@ -145,7 +138,6 @@ services:
 
   node-exporter:
     image: prom/node-exporter:latest
-    container_name: node-exporter-staging
     ports:
       - "9101:9100"
     healthcheck:
