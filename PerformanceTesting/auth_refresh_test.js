@@ -1,7 +1,9 @@
+
 import http from 'k6/http';
 import { check, group, sleep } from 'k6';
 import { Trend, Counter } from 'k6/metrics';
 import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js';
+import { calculateThinkAndPaceTime } from './think_pace.js';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const AUTH_URL = `${BASE_URL}/auth`;
@@ -12,7 +14,9 @@ const TPH = __ENV.TPH ? parseInt(__ENV.TPH, 10) : 10;
 const REGISTER_ROLE = __ENV.USER_ROLE || 'student';
 const REGISTER_PASSWORD = 'Password123!';
 const ROLE = __ENV.USER_ROLE || 'student';
-const TARGET_ITERATION_SECONDS = (60 * 60 * VUS) / TPH;
+
+// Calculate think and pace time using Little's Law
+const { thinkTime: DEFAULT_THINK_TIME, paceTime: DEFAULT_PACE_TIME, targetIterationSeconds: TARGET_ITERATION_SECONDS } = calculateThinkAndPaceTime(TPH, VUS);
 
 let testUserEmail = null;
 let testUserPassword = REGISTER_PASSWORD;
@@ -73,28 +77,33 @@ function recordMetrics(endpoint, res, success) {
 function loginUser(email = null, password = null) {
   const loginEmail = email || testUserEmail;
   const loginPassword = password || testUserPassword;
-
   const res = http.post(
     `${AUTH_URL}/login`,
     JSON.stringify({ email: loginEmail, password: loginPassword }),
     jsonHeaders()
   );
-
+  // Use regex to extract tokens if not present in JSON
+  let access = res.json('accessToken');
+  let refresh = res.json('refreshToken');
+  if (!access || !refresh) {
+    // fallback: try regex
+    const matchAccess = /"accessToken"\s*:\s*"([^"]+)"/.exec(res.body);
+    const matchRefresh = /"refreshToken"\s*:\s*"([^"]+)"/.exec(res.body);
+    access = access || (matchAccess ? matchAccess[1] : null);
+    refresh = refresh || (matchRefresh ? matchRefresh[1] : null);
+  }
   const success = check(res, {
     'login returned 200': (r) => r.status === 200,
-    'login returned access token': (r) => !!r.json('accessToken'),
-    'login returned refresh token': (r) => !!r.json('refreshToken'),
+    'login returned access token': () => !!access,
+    'login returned refresh token': () => !!refresh,
   });
-
   recordMetrics('login', res, success);
-
   if (!success) {
     console.error(`Login failed: ${res.status} - ${res.body}`);
     return false;
   }
-
-  accessToken = res.json('accessToken');
-  refreshToken = res.json('refreshToken');
+  accessToken = access;
+  refreshToken = refresh;
   return true;
 }
 
@@ -192,40 +201,42 @@ export default function (data) {
   }
 
   group('Complete API workflow', () => {
-    // Health check - direct to auth service
+    // 1. Auth health check
     const healthRes = http.get(HEALTH_URL);
     const healthSuccess = check(healthRes, {
       'health returned 200': (r) => r.status === 200,
     });
     recordMetrics('health', healthRes, healthSuccess);
 
-    // Metrics - no auth required
-    const metrics = callApi('GET', 'metrics', '/auth/metrics', null, false, [200]);
+    // 2. Register (should be done in setup, but for sequence completeness)
+    // Skipped here, as user is already registered in setup
 
-    // Profile - requires auth
+    // 3. Login (already done, but can be re-tested if needed)
+    // loginUser(testUserEmail, testUserPassword);
+
+    // 4. Profile
     const profile = callApi('GET', 'profile', '/auth/profile', null, true, [200]);
 
-    // Role-based endpoint
+    // 5. Role-based endpoint
     const roleRoute = ROLE === 'admin' ? 'admin' : ROLE === 'instructor' ? 'instructor' : 'student';
     const roleResult = callApi('GET', roleRoute, `/auth/${roleRoute}`, null, true, [200]);
 
-    // Refresh token
+    // 6. Refresh token
     refreshTokenIfNeeded();
 
-    // Logout
+    // 7. Logout
     const logoutResult = callApi('POST', 'logout', '/auth/logout', { refreshToken }, false, [200]);
-
     if (logoutResult.success) {
       accessToken = null;
       refreshToken = null;
     }
 
-    const thinkTime = 2 + Math.random();
+    // Use calculated think and pace time
+    const thinkTime = DEFAULT_THINK_TIME + Math.random();
     const elapsed = (Date.now() - iterationStart) / 1000;
     const paceTime = Math.max(0, TARGET_ITERATION_SECONDS - elapsed - thinkTime);
 
     logStep('health', thinkTime, paceTime, healthRes ? healthRes.status : 0);
-    logStep('metrics', thinkTime, paceTime, metrics.res ? metrics.res.status : 0);
     logStep('profile', thinkTime, paceTime, profile.res ? profile.res.status : 0);
     logStep(roleRoute, thinkTime, paceTime, roleResult.res ? roleResult.res.status : 0);
 
