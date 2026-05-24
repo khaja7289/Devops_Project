@@ -26,6 +26,8 @@ pipeline {
             steps {
                 echo '📥 Checking out code...'
                 checkout scm
+                echo '📂 Listing workspace contents after checkout:'
+                sh 'ls -lR'
             }
         }
 
