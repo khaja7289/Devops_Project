@@ -29,33 +29,16 @@ pipeline {
             }
         }
 
-        stage('Pre-Test Setup') {
+        stage('K6 Test') {
             steps {
-                echo '⚙️ Setting up performance test environment...'
-                sh '''
-                echo "Verifying services are running..."
-                docker ps --format "table {{.Names}}\t{{.Status}}"
-
-                echo "Checking service health (from inside compose network)..."
-                docker compose -f docker-compose.prod.yml exec -T auth-service \
-                  node -e "const http=require('http'); const req=http.get('http://127.0.0.1:3000/health', res => { if (res.statusCode!==200) { console.error('status', res.statusCode); process.exit(1); } else { console.log('OK'); process.exit(0); } }); req.on('error', err => { console.error(err.message); process.exit(1); });" \
-                || echo "Warning: Auth service not responding"
-                '''
-            }
-        }
-
-        stage('Auth Refresh Test') {
-            steps {
-                echo '⚡ Running K6 Auth Refresh Performance Tests...'
+                echo '⚡ Running K6 Performance Tests...'
                 sh '''
                 mkdir -p PerformanceTesting/results
-
-                docker compose -f docker-compose.prod.yml -f docker-compose.k6.yml run --rm k6 \
-                  run auth_refresh_test.js \
-                  --summary-export=results/auth_refresh_summary.json \
-                  --out=json=results/auth_refresh_results.json
-
-                echo "✅ Auth Refresh Test completed"
+                docker compose -f docker-compose.k6.yml run --rm k6 \
+                  run /tests/auth_refresh_test.js \
+                  --summary-export=/tests/results/auth_refresh_summary.json \
+                  --out=json=/tests/results/auth_refresh_results.json
+                echo "✅ K6 Test completed"
                 '''
             }
         }
