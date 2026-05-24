@@ -8,7 +8,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata-prod:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -123,6 +123,5 @@ services:
     restart: always
 
 volumes:
-  pgdata-prod:
   prometheus_data-prod:
   grafana_data-prod:
