@@ -7,7 +7,7 @@ import { calculateThinkAndPaceTime } from './think_pace.js';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const AUTH_URL = `${BASE_URL}/auth`;
-const HEALTH_URL = 'http://localhost:3000/health';
+const HEALTH_URL = 'http://localhost:3002/health';
 const VUS = __ENV.VUS ? parseInt(__ENV.VUS, 10) : 1;
 const DURATION = __ENV.DURATION || '10m';
 const TPH = __ENV.TPH ? parseInt(__ENV.TPH, 10) : 10;
